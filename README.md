@@ -1,2 +1,0 @@
-# gti-boolean-simplification
-
