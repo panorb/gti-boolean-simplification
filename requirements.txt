@@ -1,0 +1,4 @@
+mpmath==1.0.0
+pkg-resources==0.0.0
+pygame==1.9.4
+sympy==1.3
