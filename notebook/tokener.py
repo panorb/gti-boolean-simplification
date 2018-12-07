@@ -27,23 +27,41 @@ class Token:
 
 def create_tokens(line):
     line = "(a+(b*c_1))+((c_1*c_2)+(c_2*a))"
-    reserved_symbols = ['(', ')', '+', '*']
-
-    base_vars = []
-    cur_var = ""
-
-    current_deepness = 0
-    deepness = [[0]]
 
     print(line)
     # Find the variable names and note deepness levels
+    # TODO: Nochmal überprüfen, der -1 index muss irgendwie herauslasbar sein.
+    # 
+
+    prepare_equation(line)
+
+    # args = []
+
+    # for i in range(len(deepness) - 1, 0, -1):
+    #     for j in deepness[i]:
+    #         # TODO: Create the element
+    #         while True:
+    #             k = j
+    #             if (line[k] not in reserved_symbols):
+                    
+    #             if (line[k] == '+' || line[k] == '*'):
+
+def prepare_equation(line):
+    base_vars = []
+    cur_var = ""
+    cur_var_start = 0
+    
+    reserved_symbols = ['(', ')', '+', '*']
+    current_deepness = 0
+    deepness = []
+
     for i in range(len(line)):
         c = line[i]
         print_color = color.END
 
         if (c == '('):
             current_deepness += 1
-            if (len(deepness) >= current_deepness):
+            if (len(deepness) <= current_deepness):
                 deepness.append([i])
             else:
                 deepness[current_deepness].append(i)
@@ -54,21 +72,19 @@ def create_tokens(line):
             print_color = color.BOLD + color.RED
 
         if (c not in reserved_symbols):
+            if (len(cur_var) == 0):
+                cur_var_start = i
             cur_var += c
         elif c in reserved_symbols and len(cur_var) > 0:
             if cur_var not in base_vars:
                 token = Token("input", var=cur_var)
                 base_vars.append(token)
+                line = line[0:cur_var_start] + token.token_id + line[i - 1:len(line)]
+                return prepare_equation(line)
             cur_var = ""
         print(print_color + c, end='', flush=True)
-    
     print(color.END)
-    
-
-
-
-    for element in base_vars:
-        print(element.token_type + " " + element.token_id)
+    print(deepness)
 
 def generate_id():
     return '#' + ''.join(random.choices(string.hexdigits, k=3))
