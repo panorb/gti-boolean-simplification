@@ -1,0 +1,30 @@
+name: gti-bool
+channels:
+  - defaults
+dependencies:
+  - backcall=0.1.0=py37_0
+  - ca-certificates=2018.03.07=0
+  - certifi=2018.10.15=py37_0
+  - colorama=0.4.0=py37_0
+  - decorator=4.3.0=py37_0
+  - ipython=7.2.0=py37h39e3cac_0
+  - ipython_genutils=0.2.0=py37_0
+  - jedi=0.13.1=py37_0
+  - openssl=1.1.1a=he774522_0
+  - parso=0.3.1=py37_0
+  - pickleshare=0.7.5=py37_0
+  - pip=18.1=py37_0
+  - prompt_toolkit=2.0.7=py37_0
+  - pygments=2.2.0=py37_0
+  - python=3.7.1=he44a216_5
+  - setuptools=40.6.2=py37_0
+  - six=1.11.0=py37_1
+  - tabulate=0.8.2=py37_0
+  - traitlets=4.3.2=py37_0
+  - vc=14.1=h0510ff6_4
+  - vs2015_runtime=14.15.26706=h3a45250_0
+  - wcwidth=0.1.7=py37_0
+  - wheel=0.32.3=py37_0
+  - wincertstore=0.2=py37_0
+prefix: C:\Users\Paul\Anaconda3\envs\gti-bool
+
