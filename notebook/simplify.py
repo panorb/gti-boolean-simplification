@@ -72,7 +72,11 @@ def compute(equation):
     if (len(equation) == 1):
         return char_to_bool(equation[0])
 
-    equation = equation[0:start] + bool_to_char(partial_compute(equation, start, end, False)) + equation[end+1:len(equation)]
+    computed = partial_compute(equation, start, end, False)
+    if (start - 1 >= 0 and equation[start - 1] == '!'):
+        computed = not computed
+    
+    equation = equation[0:start] + bool_to_char(computed) + equation[end+1:len(equation)]
     return compute(equation)
 
 def partial_compute(equation, start, end, invert):
@@ -82,9 +86,6 @@ def partial_compute(equation, start, end, invert):
     for i in range(start + 1, end):
         if equation[i] == '0' or equation[i] == '1':
             result = combine(combinator, result, char_to_bool(equation[i]))
-        elif equation[i] == '!':
-            # TODO: Implement Negator
-            continue
         elif equation[i] == '*':
             combinator = '*'
         elif equation[i] == '+':
@@ -119,8 +120,12 @@ def combine(combinator, a, b):
 
 def prepare_compute(equation, values):
     for pair in values:
-        if (pair[1]): equation = equation.replace(pair[0], "1")
-        else: equation = equation.replace(pair[0], "0")
+        if (pair[1]):
+            equation = equation.replace("!" + pair[0], "0")
+            equation = equation.replace(pair[0], "1")
+        else:
+            equation = equation.replace("!" + pair[0], "1")
+            equation = equation.replace(pair[0], "0")
     # print(equation)
     return "(" + equation + ")"
 
