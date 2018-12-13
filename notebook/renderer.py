@@ -1,11 +1,17 @@
-from PIL import Image, ImageDraw, ImageFont
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 def render():
-    img = Image.new('RGB', (1280, 720), color='white')
-    fnt = ImageFont.truetype('assets/open-sans.ttf', 18)
-    d = ImageDraw.Draw(img)
-    d.text((10, 10), 'Hello how is it going?', fill='black', font=fnt)
-    
-    img.save('assets/result.png')
+    wb = load_workbook('assets/template.xlsx')
+    sheet = wb['Dokument']
 
-def render_kavanaugh(pos, ):
+    # Die eigentliche Logik zur Erstellung.
+    start_column = 2
+    start_row = 3
+
+    for i in range(start_column, 10):
+        for j in range(start_row, 15):
+            sheet[get_column_letter(i) + str(j)] = 1
+
+    wb.save('assets/result.xlsx')
+    
