@@ -1,43 +1,64 @@
 import os
 import string
+import copy
 from tabulate import tabulate
-from IPython.core.display import display, HTML
 
 reserved_symbols = ['(', ')', '+', '*', '!']
 
-showInputGeneration = os.getenv("SHOW_INPUT_GENERATION", "False") == "True"
-showInputTable = os.getenv("SHOW_INPUT_TABLE", "False") == "True"
-showDepthVisualisation = os.getenv("SHOW_DEPTH_VISUALISATION", "False") == "True"
-showMinTerms = os.getenv("SHOW_MIN_TERMS", "False") == "True"
-showPhase1Table = os.getenv("SHOW_PHASE_1_TABLE", "False") == "True"
-showPhase2Table = os.getenv("SHOW_PHASE_2_TABLE", "False") == "True"
+showInputGeneration = False
+showInputTable = True
+showDepthVisualisation = False
+showMinTerms = True
+showPhase1Table = True
+showPhase2Table = True
 
-def simplify(equation):
+def set_show(show):
+    global showInputGeneration, showInputTable, showDepthVisualisation, showMinTerms, showPhase1Table, showPhase2Table
+    showInputGeneration = "INPUT_GENERATION" in show
+    showInputTable = "INOUT_TABLE" in show
+    showDepthVisualisation = "DEPTH_VISUALISATION" in show
+    showMinTerms = "MIN_TERMS" in show
+    showPhase1Table = "PHASE_1" in show
+    showPhase2Table = "PHASE_2" in show
+
+def simplify(equation, show=[]):
+    # set_show(show)
     var_names = isolate_var_names(equation)
     if showDepthVisualisation: output_depth(equation)
 
     min_terms = solve(equation, var_names)
     if showMinTerms: print("minTerms=" + str(min_terms))
-    
+
+    equation = find_simplest_equation(var_names, min_terms)
+    solve(equation, var_names)
+    return equation
+
+def random_inputs(var_names):
+    # TODO: Zufällige Inputs zuweisen
+    return
+
+def find_simplest_equation(var_names, min_terms):
     prime_implicants = phase_one(min_terms, [])
     print("Primimplikanten: " + str(prime_implicants))
 
-    essential_prime_implicants = phase_two(min_terms, prime_implicants)
-    print("Essentielle Primimplikanten: " + str(essential_prime_implicants))
+    table = phase_two(min_terms, prime_implicants)
+    print("Essentielle Primimplikanten: " + str(table))
 
-    result = create_equation(var_names, essential_prime_implicants)
-    print("Ergebnis: " + result)
-    return result
+    phase_three(table, [])
+    # result = create_equation(var_names, table)
+    # print("Ergebnis: " + result)
+    return ""
+
 
 def phase_one(terms, prime_implicants):
     ticked = []
 
     grouped_terms = group_terms(terms)
-    print("grouped_terms: " + str(grouped_terms))
     new_terms = []
     match_count = 0
 
-    for i in range(len(grouped_terms)):
+    # OOF, Setzt vorraus das Gruppen bei 0 beginnen
+    for i in grouped_terms.keys():
         if i in grouped_terms and i+1 in grouped_terms:
             for term1 in grouped_terms[i]:
                 for term2 in grouped_terms[i+1]:
@@ -46,21 +67,30 @@ def phase_one(terms, prime_implicants):
                         if term1 not in ticked: ticked.append(term1)
                         if term2 not in ticked:
                             ticked.append(term2)
-                            print("ticked[] <- " + term2)
 
                         new_terms.append(match)
                         match_count += 1
+    
+    prez_table = []
+    for i in grouped_terms.keys():
+        prez_table.append(["== {} ==".format(i), "="])
+        for term in grouped_terms[i]:
+            prez_table.append([term, "X" if term in ticked else " "])
     
     for term in terms:
         if (term not in ticked and term not in prime_implicants): prime_implicants.append(term)
 
     if (match_count == 0): return prime_implicants
 
+    tabulate_table = tabulate(prez_table, tablefmt='orgtbl')
+    print("")
+    print("-" * tabulate_table.find("\n"))
+    print(tabulate_table)
+    print("-" * tabulate_table.find("\n"))
     return phase_one(new_terms, prime_implicants)
 
 def phase_two(min_terms, prime_implicants):
     table = []
-    prez_table = []
 
     for i in range(len(prime_implicants)):
         row = []
@@ -68,42 +98,93 @@ def phase_two(min_terms, prime_implicants):
             row.append("X" if is_matching(prime_implicants[i], min_terms[j]) else " ")
         table.append(row)
 
-        prez_row = row.copy()
-        prez_row.insert(0, prime_implicants[i])
-        prez_table.append(prez_row)
+        row.insert(0, prime_implicants[i])
 
-    prez_headers = min_terms.copy()
-    prez_headers.insert(0, " ")
-    print(tabulate(prez_table, headers=prez_headers, tablefmt='orgtbl'))
+    header = min_terms.copy()
+    header.insert(0, " ")
+    table.insert(0, header)
 
-    essential_prime_implicants = []
-    for i in range(len(min_terms)):
+    print(tabulate(table, headers="firstrow", tablefmt='orgtbl'))
+    
+    return table
+
+def phase_three(o_table, reduced_prime_implicants):
+    table = copy.deepcopy(o_table)
+
+    for column in range(1, len(o_table[0])):
         x_count = 0
         x_pos = -1
-        for j in range(len(prime_implicants)):
-            if (table[j][i] == "X"):
-                x_pos = j
+        for row in range(1, len(o_table)):
+            if (o_table[row][column] == "X"):
+                x_pos = row
                 x_count += 1
         
-        if (x_count == 1 and prime_implicants[x_pos] not in essential_prime_implicants):
-            essential_prime_implicants.append(prime_implicants[x_pos])
+        if (x_count == 1):
+            if o_table[x_pos][0] not in reduced_prime_implicants:
+                reduced_prime_implicants.append(o_table[x_pos][0]) # Essential prime implicants
+                for column in row_matched_columns(o_table, x_pos):
+                    del_column(table, get_column_index_by_term(table, o_table[0][column]))
+                del_row(table, get_row_index_by_implicant(table, o_table[x_pos][0]))
+                continue
+
+        column += 1
     
-    essential_prime_implicants.sort()
-    return essential_prime_implicants
+    print(tabulate(table, headers="firstrow", tablefmt='orgtbl'))
+    print(reduced_prime_implicants)
+
+def row_matched_columns(table, row):
+    selected = []
+    for i in range(1, len(table)):
+        if table[row][i] == 'X': selected.append(i)
+    return selected
+
+def is_dominant(table, row_a, row_b):
+    matched_minterms_a = row_matched_columns(table, row_a)
+    matched_minterms_b = row_matched_columns(table, row_b)
+
+    dominant = True
+    for term in matched_minterms_b:
+        if term not in matched_minterms_a: dominant = False
+
+    return dominant
+
+def get_column_index_by_term(table, term):
+    for i in range(len(table[0])):
+        if table[0][i] == term:
+            return i
+    return -1
+
+def get_row_index_by_implicant(table, implicant):
+    for i in range(len(table)):
+        if table[i][0] == implicant:
+            return i
+    return -1
+
+def del_column(table, column_index):
+    for i in range(len(table)):
+        del table[i][column_index]
+
+def del_row(table, row_index):
+    del table[row_index]
 
 def create_equation(var_names, essential_prime_implicants):
     equation = ""
     for i in range(len(essential_prime_implicants)):
-        equation += '('
         for j in range(len(var_names)):
             if(essential_prime_implicants[i][j] == '1'):
                 equation += var_names[j] + '*'
             elif(essential_prime_implicants[i][j] == '0'):
                 equation += '!' + var_names[j] + '*'
         equation = equation[0:len(equation) - 1]
-        equation += ')+'
+        equation += '+'
     equation = equation[0:len(equation) - 1]
     return equation
+
+def matches(mask, terms):
+    matches = []
+    for term in terms:
+        if (is_matching(mask, term)): matches.append(term)
+    return matches
 
 def is_matching(mask, term):
     for i in range(len(mask)):
@@ -145,7 +226,6 @@ def match_pair(term1, term2):
 
 def isolate_var_names(equation):
     var_names = []
-
     cur_var = ""
 
     for i in range(len(equation)):
@@ -173,20 +253,18 @@ def solve(equation, var_names):
             divisor = i // pow(2, j) # TODO: Besseren Variablennamen ausdenken
             value = divisor % 2 != 0
             values += bool_to_char(value)
-            if (value): prez_values.append("1")
-            else: prez_values.append("0")
+            prez_values.append(bool_to_char(value))
         
         if (showInputGeneration): print("======")
         if (showInputGeneration): print(var_names)
         if (showInputGeneration): print(values)
 
         prep_equ = prepare_compute(equation, var_names, values)
-        #depth = analyze_for_depth(equation)
         result = compute(prep_equ)
 
         if (result):
             prez_values.append("1")
-            minTerms.append(values)
+            minTerms.append(values) # Result 1 means this becomes minterm for the algorithm.
         else:
             prez_values.append("0")
 
@@ -209,9 +287,6 @@ def compute(equation):
         start = 0
         end = len(equation)
     
-    # print("equation[start=" + str(start) + "] =" + equation[start])
-    # print("equation[end=" + str(end) + "] =" + equation[end])
-
     if (len(equation) == 1):
         return char_to_bool(equation[0])
 
@@ -262,7 +337,7 @@ def combine(combinator, a, b):
             print("CONSTANT ...")
             print("CONSTANT ." + bool_to_char(b) + ".")
         return b
-    print("Combine reached end, combinaor has no known value.")
+    print("combine() reached end, combinaor has no known value.")
     raise ValueError()
 
 def prepare_compute(equation, var_names, values):
@@ -302,11 +377,3 @@ def output_depth(equation):
         for j in range(len(depth)):
             if i in depth[j]:
                 print("    == Depth #" + str(j))
-
-def value(values, key):
-    for value in values:
-        if values[0] == key: return value[1]
-    
-    print("Tried to access value of " + key)
-    print("Values is " + values)
-    raise ValueError()
