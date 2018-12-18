@@ -30,7 +30,7 @@ def simplify(equation, show=[]):
     if showMinTerms: print("minTerms=" + str(min_terms))
 
     equation = find_simplest_equation(var_names, min_terms)
-    solve(equation, var_names)
+    # solve(equation, var_names)
     return equation
 
 def random_inputs(var_names):
@@ -42,7 +42,7 @@ def find_simplest_equation(var_names, min_terms):
     print("Primimplikanten: " + str(prime_implicants))
 
     table = phase_two(min_terms, prime_implicants)
-    print("Essentielle Primimplikanten: " + str(table))
+    # print("Essentielle Primimplikanten: " + str(table))
 
     phase_three(table, [])
     # result = create_equation(var_names, table)
@@ -51,13 +51,13 @@ def find_simplest_equation(var_names, min_terms):
 
 
 def phase_one(terms, prime_implicants):
+    print("-- PHASE 1 --")
     ticked = []
 
     grouped_terms = group_terms(terms)
     new_terms = []
     match_count = 0
 
-    # OOF, Setzt vorraus das Gruppen bei 0 beginnen
     for i in grouped_terms.keys():
         if i in grouped_terms and i+1 in grouped_terms:
             for term1 in grouped_terms[i]:
@@ -90,6 +90,7 @@ def phase_one(terms, prime_implicants):
     return phase_one(new_terms, prime_implicants)
 
 def phase_two(min_terms, prime_implicants):
+    print("-- PHASE 2 --")
     table = []
 
     for i in range(len(prime_implicants)):
@@ -105,37 +106,56 @@ def phase_two(min_terms, prime_implicants):
     table.insert(0, header)
 
     print(tabulate(table, headers="firstrow", tablefmt='orgtbl'))
-    
     return table
 
 def phase_three(o_table, reduced_prime_implicants):
+    print("-- PHASE 3 --")
     table = copy.deepcopy(o_table)
 
-    for column in range(1, len(o_table[0])):
-        x_count = 0
-        x_pos = -1
-        for row in range(1, len(o_table)):
-            if (o_table[row][column] == "X"):
-                x_pos = row
-                x_count += 1
-        
-        if (x_count == 1):
-            if o_table[x_pos][0] not in reduced_prime_implicants:
-                reduced_prime_implicants.append(o_table[x_pos][0]) # Essential prime implicants
-                for column in row_matched_columns(o_table, x_pos):
-                    del_column(table, get_column_index_by_term(table, o_table[0][column]))
-                del_row(table, get_row_index_by_implicant(table, o_table[x_pos][0]))
-                continue
-
+    # Lesen der essentiellen Primimplikanten und entfernen dieser, sowie der abgedeckten Minterme aus der Tabelle
+    column = 1
+    while len(table) > 1 and column < len(table[0]):
+        matched_terms = column_matched_terms(table, column)
+        if len(matched_terms) == 1: # Essentielle Primimplikante gefunden
+            essential_term = matched_terms[0]
+            reduced_prime_implicants.append(table[essential_term][0])
+            while len(row_matched_columns(table, essential_term)) > 0:
+                column_to_delete = row_matched_columns(table, essential_term)[0] 
+                del_column(table, column_to_delete)
+                if column <= column_to_delete:
+                    column -= 1
+            del_row(table, essential_term) # Die Zeile der essentiellen Primimplikante aus der Tabelle löschen
         column += 1
+
+        
+
+    # Löschen aller dominierten Primimplikanten (Zeilen) aus der Tabelle
+    row = 1
+    while len(table) > 1 and row < len(table):
+        # print("row = " + str(row))
+        c_row = 1
+        while c_row < len(table):
+           # print("c_row = " + str(c_row))
+            if row != c_row and is_dominant(table, row, c_row):
+                del table[c_row]
+                if row > c_row: row -= 1
+                c_row -= 1
+            c_row += 1
+        row += 1
     
     print(tabulate(table, headers="firstrow", tablefmt='orgtbl'))
     print(reduced_prime_implicants)
 
 def row_matched_columns(table, row):
     selected = []
+    for i in range(1, len(table[0])):
+        if table[row][i] == "X": selected.append(i)
+    return selected
+
+def column_matched_terms(table, column):
+    selected = []
     for i in range(1, len(table)):
-        if table[row][i] == 'X': selected.append(i)
+        if table[i][column] == "X": selected.append(i)
     return selected
 
 def is_dominant(table, row_a, row_b):
@@ -146,6 +166,8 @@ def is_dominant(table, row_a, row_b):
     for term in matched_minterms_b:
         if term not in matched_minterms_a: dominant = False
 
+    if dominant:
+        print(str(table[row_a]) + " is dominant over " + str(table[row_b]))
     return dominant
 
 def get_column_index_by_term(table, term):
@@ -241,7 +263,6 @@ def isolate_var_names(equation):
     return var_names
 
 def solve(equation, var_names):
-    # [["a", 0], ["b", 0], ["x_1", 1]]
     prez_display = []
     minTerms = []
 
@@ -250,7 +271,7 @@ def solve(equation, var_names):
         values = ""
 
         for j in range(len(var_names) - 1, -1, -1):
-            divisor = i // pow(2, j) # TODO: Besseren Variablennamen ausdenken
+            divisor = i // pow(2, j)
             value = divisor % 2 != 0
             values += bool_to_char(value)
             prez_values.append(bool_to_char(value))
